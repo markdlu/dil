@@ -1,0 +1,81 @@
+- hosts: mycas 
+#user you will be logging in with
+  remote_user: 
+#Option to elevate permissions (in this case sudo)  
+  become: yes
+  become_method: sudo
+#Begin tasks for install
+  tasks:
+#This step is needed for anything outside of prod, for production the repo will be present and this can be commented out
+    - name: Create repo file for cassandra
+      yum_repository:
+        name: datastax
+        description: DataStax Repo for DataStax Enterprise
+        baseurl: https://dbengineeringgroup%40diligent.com:DiligentDSE1@rpm.datastax.com/enterprise
+        gpgcheck: no
+        enabled: yes
+#disable firewall and selinux
+    - name: Disable firewall
+      command: chkconfig firewalld off
+    - name: Disable SELinux
+      lineinfile:
+        path: /etc/selinux/config
+        state: present
+        regexp: '^SELINUX='
+        line: 'SELINUX=disabled'
+#Install currently supported Java 1.8.0
+    - name: Install Java
+      yum:
+        name: java-1.8.0-openjdk
+        state: latest
+#install full DSE version 5.1.11        
+    - name: Install DSE-Full (5.1.11)
+      yum:
+        name: dse-full-5.1.11-1.noarch
+#install datastax agent for opscenter connectivity
+    - name: Install datastax agent (6.1.5)
+      yum:
+        name: datastax-agent-6.1.5-1.noarch
+#Config changes - These can be modified to fit the specific cluster you're working on        
+    - name: Copy dse.yaml to etc-dse
+      copy:
+        src: 
+        dest: /etc/dse/dse.yaml
+        backup: yes
+    - name: Copy cassandra.yaml to etc-dse-cassandra
+      copy:
+        src: 
+        dest: /etc/dse/cassandra/cassandra.yaml
+        backup: yes
+    - name: Copy cassandra-env.sh to etc-dse-cassandra
+      copy:
+        src: 
+        dest: /etc/dse/cassandra/cassandra-env.sh
+        backup: yes
+    - name: Copy cassandra-rackdc.properties file to etc-dse-cassandra
+      copy:
+        src: 
+        dest: /etc/dse/cassandra/cassandra-rackdc.properties
+        backup: yes
+    - name: Copy jvm.options file to etc-dse-cassandra
+      copy:
+        src: 
+        dest: /etc/dse/cassandra/jvm.options
+        backup: yes
+    - name: set listen address
+      lineinfile:
+        path: /etc/dse/cassandra/cassandra.yaml
+        state: present
+        regexp: '^rpc_address:'
+        line: 'rpc_address: {{myip}}'
+    - name: set RPC address
+      lineinfile:
+        path: /etc/dse/cassandra/cassandra.yaml
+        state: present
+        regexp: '^listen_address:'
+        line: 'listen_address: {{myip}}'
+#Reboot server
+    - name: Restart server
+      command: /sbin/shutdown -r
+    - name: Wait for the server to finish rebooting
+      local_action: wait_for host={{ inventory_hostname }} search_regex=OpenSSH port=22 timeout=300

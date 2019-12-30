@@ -1,0 +1,23 @@
+---
+#Impacted hosts - listed in the /etc/ansible/hosts file
+- hosts: [mdbuat]
+#user you will be logging in with
+  remote_user: mlu@npres.local
+  serial: 2 
+  #Option to elevate permissions (in this case sudo)
+  become: yes
+  become_method: sudo
+  ignore_errors: true
+  gather_facts: false
+  ignore_unreachable: true
+ #Begin tasks for install
+  tasks:
+    - name: copy touser.bash to remote
+      copy:
+       src: /home/mlu@npres.local/ansible/bin/touser.bash
+       dest: /tmp/touser.bash 
+       owner: mlu@npres.local
+       group: 'domain users@npres.local'
+       mode: '0600'
+    - name: run touser.bash on remote
+      shell:  sh /tmp/touser.bash

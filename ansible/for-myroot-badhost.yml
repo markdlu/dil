@@ -1,0 +1,68 @@
+---
+#Impacted hosts - listed in the /etc/ansible/hosts file
+- hosts: [mdbuat]
+#user you will be logging in with
+  remote_user: mlu@npres.local
+  serial: 2 
+  #Option to elevate permissions (in this case sudo)
+  become: yes
+  become_method: sudo
+ #Begin tasks for install
+  tasks:
+    - name: copy mkhome.bash to remote
+      ignore_errors: yes
+      copy:
+       src: /home/mlu@npres.local/ansible/bin/mkhome.bash
+       dest: /tmp/mkhome.bash 
+       owner: mlu@npres.local
+       group: 'domain users@npres.local'
+       mode: '0600'
+    - name: run mkhome.bash on remote
+      ignore_errors: yes
+      shell:  sh /tmp/mkhome.bash
+    - name: check .bash_profile exist 
+      file: 
+        path: "/home/npres.local/mlu/.bash_profile"
+        state: touch
+    - name: make bin directory
+      ignore_errors: yes
+      file:
+        path: /home/npres.local/mlu/bin
+        state: directory
+        owner: mlu@npres.local
+        group: 'domain users@npres.local'
+    - name: update .bash_profile 
+      ignore_errors: yes
+      lineinfile:
+        dest=/home/npres.local/mlu/.bash_profile
+        line='alias myroot=\'~/bin/mysql --login-path=rootcr --prompt=\"MariaDB [\d]>\_\"\''
+        state=present
+        insertafter=EOF
+    - name: copy file to remote1
+      ignore_errors: yes
+      copy:
+       src: /home/mlu@npres.local/sftptmp/.mylogin.cnf
+       dest: /home/npres.local/mlu/.mylogin.cnf
+       owner: mlu@npres.local
+       group: 'domain users@npres.local'
+       mode: '0600'
+       follow: yes
+    - name: copy file to remote2
+      ignore_errors: yes
+      copy:
+       src: /home/mlu@npres.local/sftptmp/mysql_config_editor
+       dest: /home/npres.local/mlu/bin/mysql_config_editor
+       owner: mlu@npres.local
+       group: 'domain users@npres.local'
+       mode: 'u+rx'
+       follow: yes
+    - name: copy file to remote3
+      ignore_errors: yes
+      copy:
+       src: /home/mlu@npres.local/sftptmp/mysql
+       dest: /home/npres.local/mlu/bin/mysql
+       owner: mlu@npres.local
+       group: 'domain users@npres.local'
+       mode: 'u+rx'
+       follow: yes
+

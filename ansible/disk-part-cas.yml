@@ -1,0 +1,34 @@
+---
+#Impacted hosts - listed in the /etc/ansible/hosts file
+- hosts: [mycas]
+#user you will be logging in with
+  #remote_user: mlu@npres.local
+  #Option to elevate permissions (in this case sudo)
+  become: yes
+  become_method: sudo
+ #Begin tasks for install
+  tasks:
+    - name: Partition Disk
+      parted:
+        device: /dev/sdb
+        number: 1
+        state: present
+    - name: create filesystem
+      filesystem:
+        fstype: xfs
+        dev: /dev/sdb1
+    - name: make data directory
+      command: mkdir /data
+    - name: mount filesystem to /var/lib/mysql and add to fstab
+      mount:
+        path: /data
+        src: /dev/sdb1
+        fstype: xfs
+        state: present
+    - name: Output fstab
+      command: cat /etc/fstab
+    - name: Output mount points
+      command: df -hT
+# *************  ONLY RUN THIS ON NEW SYSTEMS/SYSTEMS THAT HAVE A MAINTENANCE WINDOW************
+    - name: Reboot Host
+      command: reboot

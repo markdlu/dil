@@ -1,0 +1,11 @@
+
+---
+- hosts: [g-cls]
+  remote_user: mlu@npres.local 
+  serial: 2
+  become: yes
+  become_method: sudo
+  tasks:
+  - name: Run Backup Script
+    script: /home/mlu@npres.local/ansible/python_code/mydev/MDB_Backup.py 
+

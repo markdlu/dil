@@ -1,0 +1,49 @@
+---
+- hosts: [mydb] 
+#user you will be logging in with
+  become: yes
+  become_method: sudo
+ #Begin tasks for install
+  tasks:
+    - name: create pv
+      command: pvcreate /dev/sdc 
+    - name: create vg
+      command: vgcreate logvg /dev/sdc 
+    - name: create lv01 
+      command: lvcreate -y -L 15G -n loglv01 logvg 
+    - name: create lv02 
+      command: lvcreate -y -L 5G -n loglv02 logvg 
+    - name: create filesystem
+      filesystem:
+        fstype: xfs
+        dev: /dev/logvg/loglv01 
+    - name: create filesystem
+      filesystem:
+        fstype: xfs
+        dev: /dev/logvg/loglv02
+    - name: make data directory
+      command:  mkdir -p /var/log/mysql
+    - name: mount filesystem to /var/log/mysql and add to fstab
+      mount:
+        path: /var/log/mysql
+        src:  /dev/logvg/loglv01 
+        fstype: xfs
+        state: present
+    - name: mount filesystem to /tmp and add to fstab
+      mount:
+        path: /tmp
+        src:  /dev/logvg/loglv02
+        fstype: xfs
+        state: present
+    - name: Output fstab
+      command: cat /etc/fstab
+    - name: Output mount points
+      command: df -hT
+    - name: insert into mariadb.service 
+      lineinfile:
+        path: /etc/systemd/system/multi-user.target.wants/mariadb.service 
+        insertbefore: 'ExecStartPre=/bin/sh -c "systemctl unset-environment _WSREP_START_POSITION"'
+        line: 'ExecStartPre=/bin/sh -c "chown mysql:mysql /var/log/mysql"'
+# *************  ONLY RUN THIS ON NEW SYSTEMS/SYSTEMS THAT HAVE A MAINTENANCE WINDOW************
+    - name: Reboot Host
+      command: reboot

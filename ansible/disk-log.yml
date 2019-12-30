@@ -1,0 +1,33 @@
+---
+#Impacted hosts - listed in the /etc/ansible/hosts file
+- hosts: [mydb]
+#user you will be logging in with
+  become: yes
+  become_method: sudo
+ #Begin tasks for install
+  tasks:
+    - name: Partition Disk
+      parted:
+        device: /dev/sdc
+        number: 1
+        state: present
+    - name: create filesystem
+      filesystem:
+        fstype: xfs
+        dev: /dev/sdc
+    - name: make data directory
+      command: mkdir -p /var/log/mysql
+      command: chown mysql:mysql  /var/log/mysql
+    - name: mount filesystem to /var/log/mysql and add to fstab
+      mount:
+        path: /var/log/mysql
+        src: /dev/sdc
+        fstype: xfs
+        state: present
+    - name: Output fstab
+      command: cat /etc/fstab
+    - name: Output mount points
+      command: df -hT
+# *************  ONLY RUN THIS ON NEW SYSTEMS/SYSTEMS THAT HAVE A MAINTENANCE WINDOW************
+    - name: Reboot Host
+      command: reboot

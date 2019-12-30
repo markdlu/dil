@@ -1,0 +1,10 @@
+
+---
+- hosts: [g-cls]
+  remote_user: mlu@npres.local
+  become: yes
+  become_method: sudo
+  tasks:
+  - name: Run Backup Script
+    script: /var/ansible/opt/mdb-playbooks/MDB_Backup_Inc.py
+
