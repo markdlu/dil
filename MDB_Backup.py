@@ -5,7 +5,7 @@
 #  Mark Lu          -- adding log_check1 function of full backup 12/26/2019
 #                   -- adding nodata schema via mysqldump to full backup dir 12/26/2019
 #                   -- reformat content  12/26/2019
-#
+#                   -- adding backup ServerSnapshot backup 01/16/2020
 #
 import os, shutil
 import datetime, time
@@ -121,6 +121,14 @@ def do_backup():
     if "OFF" in r:
     #Get DB List (Returns a TUPLE)
       cur.execute(dblist)
+      snpshot_bkp_path = backup_root_dir + hostname + "/ServerSnapshot" + time.strftime("/%Y-%m-%d-%H%M/")
+      #snpsht_bkp_cmd = "mariabackup --backup --target-dir=" + snpshot_bkp_path + "  --user mdbbackupuser --password=MdB8qL1E7Pbup --no-lock --open-files-limit 3500 2> " + snpshot_bkp_path + "backup_logfile.log"
+      snpsht_bkp_cmd = "mariabackup --backup --target-dir=" + snpshot_bkp_path + "  --user mdbbackupuser --password=mdb8qL1E7Ubkup --no-lock --open-files-limit 3500 2> " + snpshot_bkp_path + "backup_logfile.log"
+      snpshot_ret_path = backup_root_dir + hostname + "/ServerSnapshot"
+      backup_folder(snpshot_bkp_path)
+      os.system(snpsht_bkp_cmd)
+      log_check("ServerSnapShot", snpshot_bkp_path + "backup_logfile.log",snpshot_ret_path,"full")
+      retention_cleanup(snpshot_ret_path,"ServerSnapshot")
       dbs = cur.fetchall()
       for d in dbs:
         #Convert Tuple to String and concatonate with path and command. Path Created will be /backuplocation/dbname/year/month-day/24hrtime

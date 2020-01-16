@@ -8,6 +8,7 @@
 #          -- add restore a whole db 
 #          -- modify restore db name with _$now 
 #          -- modify using a temp backup dir in order to restore more than once
+#          -- added ServerSnapshot whole instance restore option 01/16/2020
 #
 ###############################################################
 
@@ -16,23 +17,73 @@ function set_env
 export username=`cat $HOME/.pw |grep username |cut -d: -f2 `
 echo "username: "  $username
 export password=`cat $HOME/.pw |grep password |cut -d: -f2 `
+
 export targetdir=`cat /tmp/restore.info |grep ^fullbackupdir |cut -d':' -f2 `
+if [ "$targetdir" != "null" ]
+then
+if [ -d ${targetdir}_current ]
+then
 sudo rm -rf ${targetdir}_current
+fi
 sudo cp -rp ${targetdir} ${targetdir}_current 
 sudo chmod -R 777 ${targetdir}_current
 export targetdir=${targetdir}_current
+fi
+
 export incrementaldir=`cat /tmp/restore.info |grep ^incbackupdir |cut -d':' -f2`
 if [ "$incrementaldir" != "null" ]
 then
+if [ -d ${incrementaldir}_current ]
+then
 sudo rm -rf ${incrementaldir}_current
+fi
 sudo cp -rp ${incrementaldir} ${incrementaldir}_current
 sudo chmod -R 777  ${incrementaldir}_current
 export incrementaldir=${incrementaldir}_current
-fi 
+fi
+
 echo "targetdir is:"  "$targetdir"
 echo "incrementaldir is: " "$incrementaldir"
 now=`date +%Y%d%H%M%S`
 #mysql -u${username} -p${password} -e "set global wsrep_on=OFF ;"
+}
+
+function restore_whole
+{
+export targetdir=`cat /tmp/restore.info | grep ^serversnapshotdir |cut -d':' -f2 `
+echo "$targetdir"
+if [ "$targetdir" != "null" ]
+then
+if [ -d ${targetdir}_current ]
+then
+sudo rm -rf ${targetdir}_current
+fi
+sudo cp -rp ${targetdir} ${targetdir}_current
+sudo chmod -R 777 ${targetdir}_current
+export targetdir=${targetdir}_current
+else
+echo "$targetdir is null, please update /tmp/restore.info file"
+exit 1;
+fi
+
+#shutdown mariadb, clear /var/lib/mysql dir
+echo "$targetdir"
+sudo systemctl stop mariadb
+sleep 3
+echo "M1"
+sudo bash -c "rm -rf /var/lib/mysql/*"
+
+#prepare full datadir first
+sudo /usr/bin/mariabackup --prepare --apply-log-only --target-dir=${targetdir}
+
+#finally copy back from full datadir --restore
+echo "copy back full to datadir..."
+sudo /usr/bin/mariabackup --copy-back --datadir=/var/lib/mysql  --target-dir=$targetdir
+
+sudo chown -R mysql:mysql /var/lib/mysql
+sudo /usr/bin/galera_new_cluster
+ps -ef |grep mysql
+echo "mysql is up now.."
 }
 
 function restore_db
@@ -41,7 +92,7 @@ function restore_db
 sudo /usr/bin/mariabackup --prepare --apply-log-only --target-dir=${targetdir}
 
 #then prepare incremental dir
-if [ -z "$incrementaldir" ]
+if [ "$incrementaldir" == "null" ]
 then
 echo "no incremental backup yet"
 else
@@ -68,7 +119,7 @@ create_object;
 done
 
 echo "copy table to new database ${dbname}_$now dir..."
-sudo cp -rp $targetdir/$dbname/* /var/lib/mysql/${dbname}_$now/.
+sudo bash -c "cp -rp $targetdir/$dbname/* /var/lib/mysql/${dbname}_$now/."
 sudo chown -R mysql:mysql /var/lib/mysql/${dbname}_$now/
 
 for i in `cat table_all.txt`
@@ -89,7 +140,7 @@ function restore_table
 sudo /usr/bin/mariabackup --prepare --apply-log-only --target-dir=${targetdir}
 
 #then prepare incremental dir
-if [ -z "$incrementaldir" ]
+if [  "$incrementaldir" == "null" ]
 then
 echo "no incremental backup yet"
 else
@@ -107,7 +158,7 @@ fi
 #finally copy back from full datadir --restore
 create_object;
 echo "copy signgle table $tbname to new database ${dbname}_$now dir..."
-sudo cp -rp $targetdir/$dbname/$tbname.* /var/lib/mysql/${dbname}_$now/.
+sudo bash -c "cp -rp $targetdir/$dbname/$tbname.* /var/lib/mysql/${dbname}_$now/."
 sudo chown -R mysql:mysql /var/lib/mysql/${dbname}_$now/
 mysql -u${username} -p${password} -e "ALTER TABLE ${dbname}_$now.$tbname IMPORT TABLESPACE;"
 mysql -u${username} -p${password} -e "use ${dbname}_$now;select * from $tbname ;"
@@ -117,6 +168,8 @@ echo "restore table is done"
 function usage
 {
 echo "usage: "
+echo "$0 whole all " 
+echo "or"
 echo "$0 db dbname " 
 echo "or"
 echo "$0 table dbname tablename " 
@@ -165,13 +218,17 @@ echo "wrong arguments"
 usage;
 fi
 
-set_env;
-
-if [ "${restore_mode}" == "db" ]
+if [ "${restore_mode}" == "whole" ] && [ "${dbname}" == "all" ]
 then
+set_env;
+restore_whole
+elif [ "${restore_mode}" == "db" ]
+then
+set_env;
 restore_db
 elif  [ "${restore_mode}" == "table" ]
 then
+set_env;
 restore_table
 else
 echo "Wrong restore_mode"
