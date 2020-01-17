@@ -54,7 +54,7 @@ def del_log(host, path, dbname):
   return json_data
 
 #Backup retention Function
-def retention_cleanup(dir, databse):
+def retention_cleanup(dir, database):
   now = time.time()
   for d in os.listdir(dir):
     dirname = os.path.join(dir, d)
@@ -116,6 +116,16 @@ def do_backup():
     if "OFF" in r:
     #Get DB List (Returns a TUPLE)
       cur.execute(dblist)
+      snpshot_bkp_path = backup_root_dir + hostname + "/ServerSnapshot" + time.strftime("/%Y-%m-%d-%H%M/")
+      #snpsht_bkp_cmd = "mariabackup --backup --target-dir=" + snpshot_bkp_path + "  --user mdbbackupuser --password=mdb8qL1E7Ubkup --no-lock --open-files-limit 3500 2> " + snpshot_bkp_path + "backup_logfile.log"
+      snpsht_backup_log = snpshot_bkp_path+'backup_logfile.log'
+      snpsht_bkp_cmd = "/usr/bin/mariabackup --backup  --user mdbbackupuser --password=mdb8qL1E7Ubkup --no-lock --open-files-limit 3500 --stream=xbstream |openssl  enc -aes-256-cbc -k vaBq8D4RqujJvte7mq2OlUfeF8+sr3Nn |gzip  > " +snpshot_bkp_path+ "full_stream.enc.gz"
+      run_snpsht_bkp_cmd = 'eval ' + '"' +snpsht_bkp_cmd + '"' + " > " + snpsht_backup_log + " 2>&1"
+      snpshot_ret_path = backup_root_dir + hostname + "/ServerSnapshot"
+      backup_folder(snpshot_bkp_path)
+      os.system(run_snpsht_bkp_cmd)
+      log_check("ServerSnapShot", snpshot_bkp_path + "backup_logfile.log",snpshot_ret_path,"full")
+      retention_cleanup(snpshot_ret_path,"ServerSnapshot")
       dbs = cur.fetchall()
       for d in dbs:
         dbstr = ''.join(d)
