@@ -119,7 +119,7 @@ def do_backup():
       snpshot_bkp_path = backup_root_dir + hostname + "/ServerSnapshot" + time.strftime("/%Y-%m-%d-%H%M/")
       #snpsht_bkp_cmd = "mariabackup --backup --target-dir=" + snpshot_bkp_path + "  --user mdbbackupuser --password=mdb8qL1E7Ubkup --no-lock --open-files-limit 3500 2> " + snpshot_bkp_path + "backup_logfile.log"
       snpsht_backup_log = snpshot_bkp_path+'backup_logfile.log'
-      snpsht_bkp_cmd = "/usr/bin/mariabackup --backup  --user mdbbackupuser --password=mdb8qL1E7Ubkup --no-lock --open-files-limit 3500 --stream=xbstream |openssl  enc -aes-256-cbc -k vaBq8D4RqujJvte7mq2OlUfeF8+sr3Nn |gzip  > " +snpshot_bkp_path+ "full_stream.enc.gz"
+      snpsht_bkp_cmd = "/usr/bin/mariabackup --backup  --user mdbbackupuser --password=mdb8qL1E7Ubkup --no-lock --open-files-limit 3500 --parallel 4 --stream=xbstream |openssl  enc -aes-256-cbc -k vaBq8D4RqujJvte7mq2OlUfeF8+sr3Nn |gzip  > " +snpshot_bkp_path+ "full_stream.enc.gz"
       run_snpsht_bkp_cmd = 'eval ' + '"' +snpsht_bkp_cmd + '"' + " > " + snpsht_backup_log + " 2>&1"
       snpshot_ret_path = backup_root_dir + hostname + "/ServerSnapshot"
       backup_folder(snpshot_bkp_path)
@@ -135,7 +135,7 @@ def do_backup():
 
         backupfile = targetdir_bkp_path+'full_stream.enc.gz'
         backup_log = targetdir_bkp_path+'backup_logfile.log'
-        full_bkp_cmd = "/usr/bin/mariabackup --backup --databases='"+dbstr+"'  --user mdbbackupuser --password=mdb8qL1E7Ubkup --no-lock --stream=xbstream |openssl  enc -aes-256-cbc -k vaBq8D4RqujJvte7mq2OlUfeF8+sr3Nn |gzip  > " +targetdir_bkp_path+ "full_stream.enc.gz"
+        full_bkp_cmd = "/usr/bin/mariabackup --backup --databases='"+dbstr+"'  --user mdbbackupuser --password=mdb8qL1E7Ubkup --no-lock --parallel 4 --stream=xbstream |openssl  enc -aes-256-cbc -k vaBq8D4RqujJvte7mq2OlUfeF8+sr3Nn |gzip  > " +targetdir_bkp_path+ "full_stream.enc.gz"
         run_full_bkp_cmd = 'eval ' + '"' +full_bkp_cmd + '"' + " > " + backup_log + " 2>&1"
         mysqldump_schema= "/usr/bin/mysqldump  --user mdbbackupuser --password=mdb8qL1E7Ubkup  --no-data " + dbstr + " > "+targetdir_bkp_path+"schema_only.sql"
 
